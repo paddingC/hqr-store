@@ -42,7 +42,7 @@ export function zncfdoctorSel(data) {
 // 字段值
 export function batchGetDictList(data) {
     return request({
-        url: 'base/dictionary/batchGetDictList',
+        url: 'dictionary/batchGetDictList',
         method: 'post',
         data
     })
