@@ -1,0 +1,523 @@
+Index: src/views/remoteReferral/connectPharmacist.vue
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/views/remoteReferral/connectPharmacist.vue	(date 1579347894000)
++++ src/views/remoteReferral/connectPharmacist.vue	(date 1579494711889)
+@@ -1,6 +1,6 @@
+ <template>
+     <div class="connectPhysician">
+-        <div class="main3">
++        <div class="main3" style="position: relative">
+             <div class="conact-success" v-show="flage">
+                 <p>执业资格证</p>
+                 <el-image
+@@ -17,7 +17,7 @@
+                     </div>
+                 </div>
+             </div>
+-            <div style="position: absolute;bottom: 105px;left: 40%">
++            <div style="position: absolute;bottom: 20px;left: 40%">
+                 <label style="margin-left: 95px">切换摄像头&nbsp;&nbsp;</label>
+                 <el-select v-model="chooseValue" @change="changeCamera" placeholder="请选择" >
+                     <el-option
+@@ -88,6 +88,7 @@
+         },
+         streamoff: function (data) {
+             if (data.status === 400) {
++                console.log('流断了,开始重新推流')
+                 this.rtc.publish()
+             }
+         }
+@@ -143,12 +144,93 @@
+             }
+             document.oncontextmenu=function(){return false}
+         },
++        openSocket() {
++            const that = this
++            var socket = new WebSocket(this.baseUrl)
++            socket.onclose = function () {
++                console.error("web channel closed")
++            }
++            socket.onerror = function (error) {
++                console.error("web channel error: " + error)
++            }
++            socket.onopen = function () {
++                that.output("WebSocket start connect")
++                new QWebChannel(socket, function (channel) {
++                    // make dialog object accessible globally
++                    window.dialog = channel.objects.dialog
++                    window.dialog.html_loaded("one")
++
++                    //网页关闭函数
++                    window.onbeforeunload = function () {
++                        window.dialog.get_actionType("closeSignal")
++                    }
++                    window.onunload = function () {
++                        window.dialog.get_actionType("closeSignal")
++                    }
++                    //反初始化
++                    // document.getElementById("closeHtml").onclick = function () {
++                    //     dialog.get_actionType("closeSignal")
++                    //     var element = document.getElementById("bigPriDev")
++                    //     element.src = ""
++                    // }
++                    //初始化
++                    // document.getElementById("openHtml").onclick = function () {
++                    window.dialog.html_loaded("one")
++                    // }
++
++                    //拍照按钮点击
++                    document.getElementById("photographPri").onclick = function () {
++                        dialog.photoBtnClicked("primaryDev_")
++                        dialog.get_actionType("savePhotoPriDev")
++                    }
++                    //服务器返回消息
++                    dialog.sendPrintInfo.connect(function (message) {
++                        // that.output(message)
++                        if (message.indexOf("priDevName") != -1) {
++                            console.log(message, "-----------------")
++                            let videoType = message.slice(11, message.length)
++                            sessionStorage.setItem('videoType', videoType)
++                        }
++                        //图片保存后返回路径关键字savePhoto_success:
++                        // if (message.indexOf("savePhoto_success:") >= 0) {
++                        //     imgPath = message.substr(18)
++                        // }
++                    })
++                    //接收图片流用来展示，多个，较小的base64数据
++                    dialog.send_priImgData.connect(function (message) {
++                        var element = document.getElementById("bigPriDev")
++                        element.src = "data:image/jpg;base64," + message
++                    })
++                    //接收拍照base64
++                    dialog.send_priPhotoData.connect(function (message) {
++                        let url = "data:image/jpg;base64," + message
++                        that.srcList.unshift(url)
++                        // that.$store.commit('ncd/SET_PICTURE', url)
++                        // console.log(that.$store.getters.ncdpicture)
++                        // var element = document.getElementById("devPhoto")
++                        // element.src = "data:image/jpg;base64," + message
++                    })
++                    that.output("ready to send/receive messages!")
++                    //网页加载完成信号
++                    dialog.html_loaded("one")
++                })
++            }
++        },
++        output(message) {
++            console.log(message)
++        },
++        photoInit() {
++            this.baseUrl = "ws://127.0.0.1:12345"
++            this.output("Connecting at " + this.baseUrl + ".")
++            this.openSocket()
++        },
+     },
+     mounted () {
+         this.$store.commit('app/SET_ROUTER', '/home/accountOverview/connectPharmacist')
+         this.$store.commit('app/SET_CALLFLAGE', true)
+         this.$nextTick(() => {
+             this.getKey(this.pharmacistInfo.roomid)
++            this.photoInit()
+         })
+         this.listenerHandle()
+     },
+Index: src/views/remoteReferral/doctorList.vue
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/views/remoteReferral/doctorList.vue	(date 1579347894000)
++++ src/views/remoteReferral/doctorList.vue	(date 1579487533952)
+@@ -6,7 +6,7 @@
+                     <div class="grid-content">
+                         <div class="left">
+                             <el-button @click="getPatientInfo">当前患者</el-button>
+-                            {{form.name}}
++                            {{formcur.name}}
+                         </div>
+                         <div class="right">
+                             <div style="padding-right: 10px;line-height: 28px;">
+@@ -63,7 +63,7 @@
+                     </el-col>
+                 </el-row>
+             </div>
+-            <el-dialog title="远程复诊患者基本信息" append-to-body width="880px" center :visible.sync="dialogPatient">
++            <el-dialog title="远程复诊患者基本信息" append-to-body width="880px" center :visible.sync="dialogPatient" :close-on-click-modal="false">
+                 <div class="dialogPatient">
+                     <div class="left">
+                         <div id="qrcode"></div>
+@@ -71,10 +71,10 @@
+                     <div class="right">
+                         <el-form :model="form" ref="form" :rules="rules" label-width="120px" class="demo-ruleForm">
+                             <el-form-item required label="患者姓名" prop="name">
+-                                <el-input type="name" v-model.number="form.name" autocomplete="off" style="width: 268px"></el-input>
++                                <el-input type="name" v-model="form.name" autocomplete="off" style="width: 268px"></el-input>
+                             </el-form-item>
+-                            <el-form-item label="身份证" prop="idCard">
+-                                <el-input type="idCard" v-model.number="form.idCard" autocomplete="off" style="width: 268px"></el-input>
++                            <el-form-item required label="身份证" prop="idCard">
++                                <el-input type="idCard" v-model="form.idCard" autocomplete="off" style="width: 268px"></el-input>
+                             </el-form-item>
+                             <el-form-item label="年龄" prop="age">
+                                 <el-input v-model.number="form.age" autocomplete="off" style="width: 268px"></el-input>
+@@ -140,7 +140,7 @@
+         }
+         var checkId = (rule, value, callback) => {
+             if (!value) {
+-                callback()
++                return callback(new Error('身份证号不能为空'))
+             } else {
+                 const reg = /(^[1-9]\d{5}(18|19|([23]\d))\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$)|(^[1-9]\d{5}\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{2}$)/
+                 console.log(reg.test(value))
+@@ -174,6 +174,13 @@
+                 sex: '',
+                 age: ''
+             },
++            formcur: {
++                name: '',
++                idCard: '',
++                phone: '',
++                sex: '',
++                age: ''
++            },
+             flage: true,
+             time: 120,
+             dialogPatient: false,
+@@ -264,7 +271,6 @@
+             } else if(data.type === '2'){
+                 clearInterval(this.setInterval)
+                 this.flage = true
+-                this.$message.warning(data.msg)
+             }
+         }
+     },
+@@ -308,6 +314,7 @@
+         finishEvent (formName) {
+             this.$refs[ formName ].validate((valid) => {
+                 if (valid) {
++                    this.formcur = this.form
+                     this.dialogPatient = false
+                 } else {
+                   return false
+@@ -337,7 +344,7 @@
+                     this.$message.warning('请选择工作状态为空闲的医生')
+                     return false
+                 }
+-                if (this.form.name === '') {
++                if (this.formcur.name === '') {
+                     this.$message.warning('请选择当前患者')
+                     return false
+                 }
+@@ -346,11 +353,12 @@
+                     companyid: this.userInfo.companyid,
+                     doctoruserid: item.userid,
+                     deptid: this.userInfo.deptid,
+-                    patient: this.form.name,
+-                    telphone: this.form.phone,
+-                    idcardno: this.form.idCard,
+-                    sex: this.form.sex,
+-                    age: this.form.age
++                    doctorid: item.doctorid,
++                    patient: this.formcur.name,
++                    telphone: this.formcur.phone,
++                    idcardno: this.formcur.idCard,
++                    sex: this.formcur.sex,
++                    age: this.formcur.age
+                 }))
+             } else {
+                 this.$message.warning('请选择工作状态为空闲的医生')
+Index: src/store/modules/user.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/store/modules/user.js	(date 1579347894000)
++++ src/store/modules/user.js	(date 1579488805597)
+@@ -15,7 +15,7 @@
+     camerasIdx: '',// 当前摄像头
+     remoteLeave: false,//远端流是否离开
+     doctorInfo: {},
+-    pharmacistInfo: {}
++    pharmacistInfo: {},
+ }
+ 
+ const mutations = {
+Index: src/views/remoteReferral/connectPhysician.vue
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/views/remoteReferral/connectPhysician.vue	(date 1579347894000)
++++ src/views/remoteReferral/connectPhysician.vue	(date 1579495282131)
+@@ -72,13 +72,22 @@
+                             height="250px"
+                             :data="tableData">
+                             <vxe-table-column field="goodsname" title="药品名" sortable></vxe-table-column>
++                            <vxe-table-column field="goodstype" title="药品规格" sortable></vxe-table-column>
+                             <vxe-table-column field="goodsqty" title="数量" sortable></vxe-table-column>
+                             <vxe-table-column field="yfyl" title="用法用量" sortable></vxe-table-column>
+-                            <vxe-table-column field="goodstype" title="药品规格" sortable></vxe-table-column>
+                             <vxe-table-column field="goodsunit" title="单位" sortable></vxe-table-column>
+                         </vxe-table>
+                         <el-button type="primary" :disabled="doctorLeave" @click="callPharmacist" style="margin-top: 10px">呼叫执业药师</el-button>
+                         <el-button type="primary" :disabled="doctorLeave" @click="cancelBtn" style="margin-top: 10px">作废</el-button>
++                            <label style="margin-left: 95px">切换摄像头&nbsp;&nbsp;</label>
++                            <el-select v-model="chooseValue" @change="changeCamera" placeholder="请选择" >
++                                <el-option
++                                    v-for="(item, index) in options"
++                                    :key="item.deviceId"
++                                    :label="item.label"
++                                    :value="index">
++                                </el-option>
++                            </el-select>
+                     </div>
+                 </el-card>
+             </div>
+@@ -105,14 +114,17 @@
+             rtc: null,
+             diagnosis: '',
+             doctorLeave: true,
+-            prescriptionid: ''
++            prescriptionid: '',
++            chooseValue: '',
++            options: [],
+         }
+     },
+     computed: {
+         ...mapGetters([
+             'userInfo',
+             'videoKey',
+-            'doctorInfo'
++            'doctorInfo',
++            'camerasArr',
+         ])
+     },
+     sockets: {
+@@ -155,17 +167,17 @@
+             }
+         },
+         approveCompletion(data){
++            console.log(data);
+             console.log('医生已离开');
+             if (data.type == '4') {
+                 if (data.cancelType == 1) {
+                     this.prescriptionid = data.prescriptionid
+                     this.doctorLeave = false
+                     this.rtc.leave()
+-                    this.rtc = null
+                 } else if(data.cancelType == 2) {
+                     console.log('医生取消复诊');
++                    this.$message.warning('医生取消此次复诊')
+                     this.rtc.leave()
+-                    this.rtc = null
+                     this.$store.commit('app/SET_CALLFLAGE', false)
+                     this.$router.push({
+                         path: '/dashboard'
+@@ -173,7 +185,6 @@
+                 }
+             } else {
+                 this.rtc.leave()
+-                this.rtc = null
+                 this.$store.commit('app/SET_CALLFLAGE', false)
+                 this.$router.push({
+                     path: '/home/remoteReferral/doctorList'
+@@ -187,6 +198,9 @@
+         }
+     },
+     methods: {
++        changeCamera (e){
++            this.rtc.switchCamera(e)
++        },
+         goBack() {
+             this.$store.commit('app/SET_CALLFLAGE', false)
+             this.$socket.emit('cancelCall', JSON.stringify({
+@@ -245,9 +259,9 @@
+                 userSig: config.userSig
+             })
+             this.rtc.join()
+-            // console.log(this.camerasArr);
++            console.log(this.camerasArr);
+             console.log('摄像头摄像头');
+-            // this.options = this.camerasArr
++            this.options = this.camerasArr
+         },
+         listenerHandle () {
+             // 键盘值
+@@ -263,19 +277,100 @@
+             }
+             document.oncontextmenu=function(){return false}
+         },
++        openSocket() {
++            const that = this
++            var socket = new WebSocket(this.baseUrl)
++            socket.onclose = function () {
++                console.error("web channel closed")
++            }
++            socket.onerror = function (error) {
++                console.error("web channel error: " + error)
++            }
++            socket.onopen = function () {
++                that.output("WebSocket start connect")
++                new QWebChannel(socket, function (channel) {
++                    // make dialog object accessible globally
++                    window.dialog = channel.objects.dialog
++                    window.dialog.html_loaded("one")
++
++                    //网页关闭函数
++                    window.onbeforeunload = function () {
++                        window.dialog.get_actionType("closeSignal")
++                    }
++                    window.onunload = function () {
++                        window.dialog.get_actionType("closeSignal")
++                    }
++                    //反初始化
++                    // document.getElementById("closeHtml").onclick = function () {
++                    //     dialog.get_actionType("closeSignal")
++                    //     var element = document.getElementById("bigPriDev")
++                    //     element.src = ""
++                    // }
++                    //初始化
++                    // document.getElementById("openHtml").onclick = function () {
++                    window.dialog.html_loaded("one")
++                    // }
++
++                    //拍照按钮点击
++                    // document.getElementById("photographPri").onclick = function () {
++                    //     dialog.photoBtnClicked("primaryDev_")
++                    //     dialog.get_actionType("savePhotoPriDev")
++                    // }
++                    //服务器返回消息
++                    dialog.sendPrintInfo.connect(function (message) {
++                        // that.output(message)
++                        if (message.indexOf("priDevName") != -1) {
++                            console.log(message, "-----------------")
++                            let videoType = message.slice(11, message.length)
++                            sessionStorage.setItem('videoType', videoType)
++                        }
++                        //图片保存后返回路径关键字savePhoto_success:
++                        // if (message.indexOf("savePhoto_success:") >= 0) {
++                        //     imgPath = message.substr(18)
++                        // }
++                    })
++                    //接收图片流用来展示，多个，较小的base64数据
++                    dialog.send_priImgData.connect(function (message) {
++                        var element = document.getElementById("bigPriDev")
++                        element.src = "data:image/jpg;base64," + message
++                    })
++                    //接收拍照base64
++                    dialog.send_priPhotoData.connect(function (message) {
++                        let url = "data:image/jpg;base64," + message
++                        that.srcList.unshift(url)
++                        // that.$store.commit('ncd/SET_PICTURE', url)
++                        // console.log(that.$store.getters.ncdpicture)
++                        // var element = document.getElementById("devPhoto")
++                        // element.src = "data:image/jpg;base64," + message
++                    })
++                    that.output("ready to send/receive messages!")
++                    //网页加载完成信号
++                    dialog.html_loaded("one")
++                })
++            }
++        },
++        output(message) {
++            console.log(message)
++        },
++        photoInit() {
++            this.baseUrl = "ws://127.0.0.1:12345"
++            this.output("Connecting at " + this.baseUrl + ".")
++            this.openSocket()
++        },
+     },
+     mounted () {
+         this.$store.commit('app/SET_ROUTER', '/home/accountOverview/information')
+         this.$store.commit('app/SET_CALLFLAGE', true)
+         this.$nextTick(() => {
+             this.getKey(this.doctorInfo.roomid)
++            this.photoInit()
+         })
+         // 快捷键
+         this.listenerHandle()
+     },
+     created() {
+         this.$store.commit('app/SET_ROUTER', '')
+-    }
++    },
+ }
+ </script>
+ <style>
+Index: src/views/historyRecipel/index.vue
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/views/historyRecipel/index.vue	(date 1579347894000)
++++ src/views/historyRecipel/index.vue	(date 1579421582480)
+@@ -211,8 +211,7 @@
+                 companyid: '',
+                 pageIndex: '',
+                 pageSize: '',
+-                attribute: '',
+-                inputmanid: ''
++                attribute: ''
+             },
+             handleCheckAllChange(val) {
+                 // this.checkedCities = val ? cityOptions : []
+@@ -359,7 +358,7 @@
+     created() {
+         this.isTimeOut()
+         this.handle()
+-        this.formInline.inputmanid = this.userInfo.userid
++        // this.formInline.inputmanid = this.userInfo.userid
+         this.formInline.approvaldate =dayjs().format('YYYY-MM-DD')
+         this.formInline.beginapprovaldate = dayjs().format('YYYY-MM-DD')
+         this.formInline.endapprovaldate = dayjs().format('YYYY-MM-DD')
+Index: src/views/pharmacyAudit/index.vue
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/views/pharmacyAudit/index.vue	(date 1579347894000)
++++ src/views/pharmacyAudit/index.vue	(date 1579425435315)
+@@ -476,7 +476,8 @@
+             if (this.choseList.length !== 1) {
+                 this.$message.warning("请选择一条数据进行打印")
+             } else {
+-                print({printable: this.choseList[ 0 ].imageurl, type: 'image', header: '处方图片'})
++                // print({printable: this.choseList[ 0 ].imageurl, type: 'image', header: '处方图片'})
++                print({printable: this.choseList[ 0 ].imageurl, type: 'image', header: ''})
+             }
+             // print('https://fuss10.elemecdn.com/a/3f/3302e58f9a181d2509f3dc0fa68b0jpeg.jpeg', 'image')
+ 
+@@ -507,7 +508,6 @@
+             if (this.choseList.length === 0) {
+                 this.$message.warning("请至少选一条数据")
+             } else {
+-
+                 if (type === 1) {
+                     this.$refs[ formName ].validate((valid) => {
+                         if (valid) {
+@@ -520,6 +520,9 @@
+                             this.dispenseAndCheck(this.formInline).then(res => {
+                                 console.log(res)
+                                 this.$message.success('审核成功')
++                                this.$router.push({
++                                    path: '/dashboard'
++                                })
+                                 this.getList()
+                             }).catch(err => {
+                                 console.log(err)
+@@ -538,8 +541,10 @@
+                     }
+                     this.dispenseAndCheck(parms).then(res => {
+                         this.$message.success('审核成功')
++                        this.$router.push({
++                            path: '/dashboard'
++                        })
+                         this.getList()
+-                        this.$message.success('成功')
+                     }).catch(err => {
+                         console.log(err)
+                     })

@@ -1,0 +1,51 @@
+{
+    "name": "vue_template",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "serve": "vue-cli-service serve",
+        "build": "vue-cli-service build",
+        "analyz": "vue-cli-service build --report",
+        "push": "./push.sh"
+    },
+    "dependencies": {
+        "@fastweb/linkup": "^1.0.0-beta.62",
+        "animate.css": "^3.7.0",
+        "axios": "^0.18.0",
+        "babel-plugin-transform-remove-console": "^6.9.4",
+        "dayjs": "^1.7.7",
+        "element-ui": "^2.13.0",
+        "jquery": "^3.4.1",
+        "js-cookie": "^2.2.1",
+        "number-precision": "^1.2.1",
+        "print-js": "^1.0.63",
+        "qrcodejs2": "0.0.2",
+        "socket.io-client": "^2.3.0",
+        "trtc-js-sdk": "^4.3.8",
+        "vue": "^2.5.17",
+        "vue-router": "^3.0.1",
+        "vue-socket.io": "^2.1.1-a",
+        "vuex": "^3.0.1",
+        "vuex-persistedstate": "^2.7.0",
+        "vxe-table": "^2.6.22",
+        "xe-utils": "^2.2.15"
+    },
+    "devDependencies": {
+        "@vue/cli-plugin-babel": "^3.2.0",
+        "@vue/cli-service": "^3.2.0",
+        "copy-webpack-plugin": "^5.1.1",
+        "node-sass": "^4.9.0",
+        "sass-loader": "^7.0.1",
+        "vue-template-compiler": "^2.5.17"
+    },
+    "postcss": {
+        "plugins": {
+            "autoprefixer": {}
+        }
+    },
+    "browserslist": [
+        "> 1%",
+        "last 2 versions",
+        "not ie <= 8"
+    ]
+}
