@@ -128,17 +128,23 @@ export default {
                 {
                     value: '1',
                     label: '点易拍Q15'
-                }, {
-                    value: '2',
-                    label: '良田S300L'
-                }, {
-                    value: '3',
-                    label: '良田S818YJ'
-                }, {
-                    value: '4',
-                    label: '良田S200L'
                 }
             ],
+            //  options: [
+            //     {
+            //         value: '1',
+            //         label: '点易拍Q15'
+            //     }, {
+            //         value: '2',
+            //         label: '良田S300L'
+            //     }, {
+            //         value: '3',
+            //         label: '良田S818YJ'
+            //     }, {
+            //         value: '4',
+            //         label: '良田S200L'
+            //     }
+            // ],
             rules: {
                 oldpwd: [
                     {validator: checkPassOld, trigger: 'blur'}
