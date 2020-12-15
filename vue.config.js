@@ -7,6 +7,7 @@ function resolve(dir) {
 }
 
 module.exports = {
+    publicPath: process.env.NODE_ENV === "production" ? "/store/" : "/",
     // 使用运行时编译器的 Vue 构建版本
     runtimeCompiler: true,
     // 开启生产环境SourceMap，设为false打包时不生成.map文件
